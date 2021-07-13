@@ -1,2 +1,1 @@
-# Rainbow
-Rainbow DQN 🌈
+# Rainbow DQN 🌈
