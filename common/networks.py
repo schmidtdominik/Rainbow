@@ -1,3 +1,6 @@
+"""
+This file defines all the neural network architectures available to use.
+"""
 from functools import partial
 from math import sqrt
 
@@ -7,6 +10,7 @@ from torch.nn import init
 import torch.nn.functional as F
 
 class FactorizedNoisyLinear(nn.Module):
+    """ The factorized Gaussian noise layer for noisy-nets dqn. """
     def __init__(self, in_features: int, out_features: int, sigma_0: float) -> None:
         super().__init__()
         self.in_features = in_features
@@ -64,9 +68,8 @@ class FactorizedNoisyLinear(nn.Module):
                         self.weight_mu + self.weight_sigma*self.weight_epsilon,
                         self.bias_mu + self.bias_sigma*self.bias_epsilon)
 
-
 class Dueling(nn.Module):
-    # only for 84x84 resolution
+    """ The dueling branch used in all nets that use dueling-dqn. """
     def __init__(self, value_branch, advantage_branch):
         super().__init__()
         self.flatten = nn.Flatten()
@@ -84,7 +87,10 @@ class Dueling(nn.Module):
 
 
 class NatureCNN(nn.Module):
-    # only for 84x84 resolution
+    """
+    This is the CNN that was introduced in Mnih et al. (2013) and then used in a lot of later work such as
+    Mnih et al. (2015) and the Rainbow paper. This implementation only works with a frame resolution of 84x84.
+    """
     def __init__(self, depth, actions, linear_layer, resolution=None):
         super().__init__()
 
@@ -106,6 +112,10 @@ class NatureCNN(nn.Module):
 
 
 class DuelingNatureCNN(nn.Module):
+    """
+    Implementation of the dueling architecture introduced in Wang et al. (2015).
+    This implementation only works with a frame resolution of 84x84.
+    """
     def __init__(self, depth, actions, linear_layer, resolution=None):
         super().__init__()
 
@@ -133,6 +143,9 @@ class DuelingNatureCNN(nn.Module):
 
 
 class ImpalaCNNSmall(nn.Module):
+    """
+    Implementation of the small variant of the IMPALA CNN introduced in Espeholt et al. (2018).
+    """
     def __init__(self, depth, actions, linear_layer, resolution=None):
         super().__init__()
 
@@ -161,7 +174,9 @@ class ImpalaCNNSmall(nn.Module):
 
 
 class ImpalaCNNResidual(nn.Module):
-
+    """
+    Simple residual block used in the large IMPALA CNN.
+    """
     def __init__(self, depth):
         super().__init__()
 
@@ -176,7 +191,9 @@ class ImpalaCNNResidual(nn.Module):
 
 
 class ImpalaCNNBlock(nn.Module):
-
+    """
+    Three of these blocks are used in the large IMPALA CNN.
+    """
     def __init__(self, depth_in, depth_out):
         super().__init__()
 
@@ -194,6 +211,9 @@ class ImpalaCNNBlock(nn.Module):
 
 
 class ImpalaCNNLarge(nn.Module):
+    """
+    Implementation of the large variant of the IMPALA CNN introduced in Espeholt et al. (2018).
+    """
     def __init__(self, in_depth, actions, linear_layer, resolution, model_size=1):
         super().__init__()
 
@@ -222,8 +242,8 @@ class ImpalaCNNLarge(nn.Module):
         return self.dueling(f, advantages_only=advantages_only)
 
 def get_model(model_str):
-    if model_str == 'nature': return NatureCNN              # like in Mnih et al 2015
-    elif model_str == 'dueling': return DuelingNatureCNN    # nature + dueling architecture
-    elif model_str == 'impala_small': return ImpalaCNNSmall # like the small model in IMPALA but with dueling and without LSTMs
-    elif model_str.startswith('impala_large:'):             # like the large model in IMPALA but with dueling and without LSTMs
+    if model_str == 'nature': return NatureCNN
+    elif model_str == 'dueling': return DuelingNatureCNN
+    elif model_str == 'impala_small': return ImpalaCNNSmall
+    elif model_str.startswith('impala_large:'):
         return partial(ImpalaCNNLarge, model_size=int(model_str[13:]))

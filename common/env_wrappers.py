@@ -1,5 +1,6 @@
 """
-Here all environment wrappers are defined and environments are created and configured
+Here all environment wrappers are defined and environments are created and configured.
+Some of these wrappers are based on https://github.com/openai/baselines/blob/ea25b9e8b234e6ee1bca43083f8f3cf974143998/baselines/common/atari_wrappers.py
 """
 
 import time
@@ -20,9 +21,10 @@ PREPROC_REC_SCALE = 4
 BASE_FPS_ATARI = 100
 BASE_FPS_PROCGEN = 22
 
-# Some of these wrappers are based on https://github.com/openai/baselines/blob/ea25b9e8b234e6ee1bca43083f8f3cf974143998/baselines/common/atari_wrappers.py
-
 class RecordEpisodeStatistics(gym.Wrapper):
+    """
+    Wrapper that records episode statistics.
+    """
     def __init__(self, env):
         super(RecordEpisodeStatistics, self).__init__(env)
         self.t0 = time.time()
@@ -51,8 +53,10 @@ class RecordEpisodeStatistics(gym.Wrapper):
 
 
 class TimeLimit(gym.Wrapper):
-    # this TimeLimit is slightly different than the one in gym.wrappers. This one is from:
-    # (from https://github.com/openai/baselines/blob/ea25b9e8b234e6ee1bca43083f8f3cf974143998/baselines/common/wrappers.py)
+    """Time limit wrapper from
+    https://github.com/openai/baselines/blob/ea25b9e8b234e6ee1bca43083f8f3cf974143998/baselines/common/wrappers.py
+    (this one is slightly different from the one in gym.wrappers)
+    """
 
     def __init__(self, env, max_episode_steps=None):
         super(TimeLimit, self).__init__(env)
@@ -142,6 +146,10 @@ class EpisodicLifeEnv(gym.Wrapper):
 
 
 class RetroEpisodicLifeEnv(gym.Wrapper):
+    """
+    Like the EpisodicLifeEnv above but for retro environments.
+    This wrapper tries to detect whether the environment provides life information and is only active if it does.
+    """
     def __init__(self, env):
         """Make end-of-life == end-of-episode, but only reset on true game over.
         Done by DeepMind for the DQN and co. since it helps value estimation.
@@ -158,7 +166,6 @@ class RetroEpisodicLifeEnv(gym.Wrapper):
 
         if self.enabled and not 'lives' in info:
             self.enabled = False
-            print('Warning: RetroEpisodicLifeEnv wrapper was disabled since this env does not seem to track player lives.')
             return obs, reward, done, info
 
         self.was_real_done = done
@@ -191,6 +198,9 @@ class RetroEpisodicLifeEnv(gym.Wrapper):
 
 
 class MaxAndSkipEnv(gym.Wrapper):
+    """
+    Frame skipping wrapper that max-pools consecutive frames.
+    """
     def __init__(self, env, skip=4):
         """Return only every `skip`-th frame"""
         gym.Wrapper.__init__(self, env)
@@ -246,6 +256,9 @@ class SkipFrameEnv(gym.Wrapper):
 
 
 class StochasticFrameSkip(gym.Wrapper):
+    """
+    Stochastic frame skipping wrapper, often used with gym-retro.
+    """
     def __init__(self, env, n, stickprob, seed):
         print(stickprob)
         gym.Wrapper.__init__(self, env)
@@ -400,9 +413,8 @@ class WarpFrame(gym.ObservationWrapper):
         if self._grayscale:
             frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
         if frame.shape[0] != self._height or frame.shape[1] != self._width:  # ds maybe
-
-            if (self._height != self._width and frame.shape[0] != frame.shape[1]) and ((frame.shape[0] > frame.shape[1]) != (self._height > self._width)):
-                frame = frame.transpose(1, 0, 2)
+            #if (self._height != self._width and frame.shape[0] != frame.shape[1]) and ((frame.shape[0] > frame.shape[1]) != (self._height > self._width)):
+            #    frame = frame.transpose(1, 0, 2)
             frame = cv2.resize(frame, (self._width, self._height), interpolation=self.interp)
         if self._grayscale:
             frame = np.expand_dims(frame, -1)
@@ -416,7 +428,9 @@ class WarpFrame(gym.ObservationWrapper):
 
 
 class RandomizeStateOnReset(gym.Wrapper):
-
+    """
+    Wrapper for retro environments which loads a random new retro state (in games that provide multiple levels/modes) after each episode.
+    """
     def __init__(self, env, seed):
         super().__init__(env)
         self.init_states = retro_utils.get_init_states()[self.env.gamename]
@@ -447,12 +461,11 @@ class DecorrEnvWrapper(gym.Wrapper):
             for i in range(int(self.decorr_steps)):
                 state, _, _, _ = self.env.step(self.env.action_space.sample())
             self.done = True
-            print(self.decorr_steps)
         return state
 
 
 def create_atari_env(config, instance_seed, instance, decorr_steps):
-    """ Configure environment for DeepMind-style Atari """
+    """ Creates a gym atari environment and wraps it for DeepMind-style Atari """
 
     env = gym.make(config.env_name[4:] + 'NoFrameskip-v4')
     env = TimeLimit(env, config.time_limit)
@@ -485,34 +498,19 @@ def create_atari_env(config, instance_seed, instance, decorr_steps):
     return env
 
 def create_retro_env(config, instance_seed, instance, decorr_steps):
+    """ Creates a retro environment and applies recommended wrappers. """
     use_restricted_actions = retro.Actions.FILTERED
     if config.retro_action_patch == 'discrete':
         use_restricted_actions = retro.Actions.DISCRETE
 
-    print(f'Retro env has init states: {retro_utils.get_init_states()[config.env_name[6:]]}, using state: {config.retro_state}')
     randomize_state_on_reset = False
     retro_state = retro.State.DEFAULT if (config.retro_state in ['default', 'randomized']) else config.retro_state
     if config.retro_state == 'randomized': randomize_state_on_reset = True
-
     env = retro.make(config.env_name[6:], state=retro_state, use_restricted_actions=use_restricted_actions)
     if randomize_state_on_reset:  # note: this might mess with any EpisodicLifeEnv-like wrappers!
         env = RandomizeStateOnReset(env, instance_seed)
-
     if config.retro_action_patch == 'single_buttons':
         env = Discretizer(env, [[x] for x in env.unwrapped.buttons if x not in ('SELECT', 'START')])
-    elif isinstance(config.retro_action_patch, list):
-        # e.g. [[], ['LEFT'], ['RIGHT'], ['A'], ['B'], ['DOWN'], ['UP'], ['X'], ['Y'],
-        #       ['LEFT', 'X'], ['RIGHT', 'X'], ['UP', 'X'], ['DOWN', 'X']]
-        # or for sonic: [['LEFT'], ['RIGHT'], ['LEFT', 'DOWN'], ['RIGHT', 'DOWN'], ['DOWN'], ['DOWN', 'B'], ['B']]
-        env = Discretizer(env, config.retro_action_patch)
-    if config.retro_action_patch == 'auto':
-        if 'SonicTheHedgehog'.lower() in config.env_name.lower():
-            scheme = [['LEFT'], ['RIGHT'], ['LEFT', 'DOWN'], ['RIGHT', 'DOWN'], ['DOWN'], ['DOWN', 'B'], ['B']]
-
-
-
-        env = Discretizer(env, config.retro_action_patch)
-
 
     if instance == 0:
         env = RecorderWrapper(env, fps=BASE_FPS_ATARI, save_dir=config.save_dir, label='emulator', record_every=config.record_every)
@@ -533,6 +531,7 @@ def create_retro_env(config, instance_seed, instance, decorr_steps):
     return env
 
 def create_procgen_env(config, instance_seed, instance):
+    """ Creates a procgen environment and applies recommended wrappers. """
     procgen_args = {k[8:]: v for k, v in vars(config).items() if k.startswith('procgen_')}
     procgen_args['start_level'] += 300_000*instance
     env = gym.make(f'procgen:procgen-{config.env_name.lower()[8:]}-v0', **procgen_args)
@@ -557,7 +556,6 @@ def create_procgen_env(config, instance_seed, instance):
 
 def create_env_instance(args, instance, decorr_steps):
     instance_seed = args.seed+instance
-
     decorr_steps = None if decorr_steps is None else decorr_steps*instance
 
     if args.env_name.startswith('retro:'): env = create_retro_env(args, instance_seed, instance, decorr_steps)

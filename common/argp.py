@@ -1,7 +1,13 @@
+"""
+This file handles parsing and validation of the cli arguments to the train_rainbow.py file.
+If left unspecified, some argument defaults are set dynamically here.
+"""
+
 import argparse
 import distutils
-
-from common.utils import prep_args
+import random
+import socket
+from copy import deepcopy
 
 
 def read_args():
@@ -15,13 +21,12 @@ def read_args():
 
     # training settings
     parser.add_argument('--training_frames', type=int, default=10_000_000, help='train for n environment interactions ("game_frames" in the code)')
-    parser.add_argument('--record_every', type=int, default=None, help='wait at least x seconds between episode recordings (default is to use environment specific presets)')
-    parser.add_argument('--seed', type=int, default=403, help='seed for pytorch, numpy, environments, random')
-    parser.add_argument('--use_wandb', type=parse_bool, default=True, help='whether to log metrics, videos, and model checkpoints to "weights & biases".')
-    parser.add_argument('--run_desc', type=str, default=None, help='description for this run that will be logged to wandb')
+    parser.add_argument('--record_every', type=int, default=60*50, help='wait at least x seconds between episode recordings (default is to use environment specific presets)')
+    parser.add_argument('--seed', type=int, default=random.randint(0, 10000), help='seed for pytorch, numpy, environments, random')
+    parser.add_argument('--use_wandb', type=parse_bool, default=True, help='whether use "weights & biases" for tracking metrics, video recordings and model checkpoints')
     parser.add_argument('--use_amp', type=parse_bool, default=True, help='whether to enable automatic mixed precision for the forward passes')
-    parser.add_argument('--der', type=parse_bool, default=False, help='enable DER profile (overrides some of the settings below)')
-    parser.add_argument('--decorr_envs', type=parse_bool, default=True, help='try to decorrelate state/progress in parallel envs')
+    parser.add_argument('--der', type=parse_bool, default=False, help='enable data-efficient-rainbow profile (overrides some of the settings below)')
+    parser.add_argument('--decorr', type=parse_bool, default=True, help='try to decorrelate state/progress in parallel envs')
 
     # environment settings
     parser.add_argument('--env_name', type=str, default='gym:Qbert',
@@ -36,14 +41,12 @@ def read_args():
                              'imited compute resources.')
     parser.add_argument('--retro_state', type=str, default='default', help='initial gym-retro state name or "default" or "randomized" (to randomize on episode reset)')
     parser.add_argument('--time_limit', type=int, default=108_000, help='environment time limit for gym & retro (in non-frameskipped native env frames)')
-    parser.add_argument('--random_retro_env', type=str, default=None, help='override the env_name setting and choose a random dense-reward gym-retro env, options are "random" and "random-multistate"')
-    parser.add_argument('--retro_dense_id', type=int, default=None, help='override the env_name setting and choose a dense-reward gym-retro env by numeric id')
 
     # env preprocessing settings
     parser.add_argument('--frame_skip', type=int, default=None, help='use only every nth env frame (default is to use environment specific presets)')
     parser.add_argument('--frame_stack', type=int, default=None, help='stack n frames (default is to use environment specific presets)')
     parser.add_argument('--grayscale', type=parse_bool, default=None, help='convert environment to grayscale (default is to use environment specific presets)')
-    # parser.add_argument('--resolution', type=int, default=None, help='environment resolution (default is to use environment specific presets)')
+    parser.add_argument('--resolution', nargs=2, type=int, default=None, help='environment resolution (default is to use environment specific presets)')
 
     # dqn settings
     parser.add_argument('--buffer_size', type=int, default=int(2 ** 20), help='capacity of experience replay buffer (must be a power of two)')
@@ -52,12 +55,9 @@ def read_args():
     parser.add_argument('--sync_dqn_target_every', type=int, default=32_000, help='sync Q target net every n frames')
 
     parser.add_argument('--batch_size', type=int, default=128, help='sample size when sampling from the replay buffer')
-    parser.add_argument('--parallel_envs', type=int, default=32, help='number of envs in the vectorized env')
-    parser.add_argument('--train_count', type=int, default=2, help='how often to train on a batch_size batch for every step (of the vectorized env)')
+    parser.add_argument('--parallel_envs', type=int, default=16, help='number of envs in the vectorized env')
+    parser.add_argument('--train_count', type=int, default=1, help='how often to train on a batch_size batch for every step (of the vectorized env)')
     parser.add_argument('--subproc_vecenv', type=parse_bool, default=False, help='whether to run each environment in it\'s own subprocess (always enabled for gym-retro)')
-
-    parser.add_argument('--tr_discard_prob', type=float, default=0, help='')
-    parser.add_argument('--tr_discard_time', type=int, default=1_000_000, help='')
 
     # rainbow settings
     parser.add_argument('--network_arch', type=str, default='impala_large:2',
@@ -75,24 +75,20 @@ def read_args():
 
     # optimizer settings
     parser.add_argument('--lr', type=float, default=0.00025, help='learning rate for adam (0.0000625 for rainbow paper/dopamine, 0.00025 for DQN/procgen paper)')
-    parser.add_argument('--lr_decay_steps', type=int, default=None, help='learning rate is decayed every n game_steps')
-    parser.add_argument('--lr_decay_factor', type=float, default=None, help='factor by which lr is multiplied')
-    parser.add_argument('--adam_eps', type=float, default=None, help='eps for adam (0.00015 for rainbow paper/dopamine, 0.0003125 for DQN/procgen paper); default is to use 0.005/batch_size')
+    parser.add_argument('--lr_decay_steps', type=int, default=None, help='learning rate is decayed every n game_steps (disabled by default)')
+    parser.add_argument('--lr_decay_factor', type=float, default=None, help='factor by which lr is multiplied (disabled by default)')
+    parser.add_argument('--adam_eps', type=float, default=None, help='epsilon for adam (0.00015 for rainbow paper/dopamine, 0.0003125 for DQN/procgen paper); default is to use 0.005/batch_size')
     parser.add_argument('--max_grad_norm', type=float, default=10, help='gradient will be clipped to ensure its l2-norm is less than this')
     parser.add_argument('--loss_fn', type=str, default='huber', help='loss function ("mse" or "huber")')
 
     # gym-retro specific settings
     parser.add_argument('--retro_stickyprob', type=float, default=0.25, help='sticky-action probability in the StochasticFrameSkip wrapper')
     parser.add_argument('--retro_action_patch', type=str, default='single_buttons',
-                        help='defines how to generate the action space from controller buttons, should be one of the following:\n'
-                             '  - None (use the default mapping, usually MultiBinary),\n'
-                             '  - "auto" (use game or emulator specific presets or fall back to "single_buttons"),\n'
-                             '  - "discrete" (all combinations of actions),\n'
-                             '  - "single_buttons" (each button is an action),\n'
-                             '  - list of button combos (each combo is an action)')
+                        help='defines how to generate the action space from controller buttons, should be either "discrete" '
+                             '(each combination of buttons is an action) or "single_buttons" (each button is an action)\n')
 
     # procgen specific settings (from https://github.com/openai/procgen)
-    parser.add_argument('--procgen_num_levels', type=int, default=0, help='the number of unique levels that can be generated. Set to 0 to use unlimited levels.') # FIXME: this does not work correctly when parallel_envs > 1
+    parser.add_argument('--procgen_num_levels', type=int, default=0, help='the number of unique levels that can be generated. Set to 0 to use unlimited levels. (this does not work correctly when parallel_envs > 1)') # FIXME: this does not work correctly when parallel_envs > 1
     parser.add_argument('--procgen_start_level', type=int, default=0, help="the lowest seed that will be used to generated levels. 'start_level' and 'num_levels' fully specify the set of possible levels.")
     parser.add_argument('--procgen_paint_vel_info', type=parse_bool, default=False, help='paint player velocity info in the top left corner. Only supported by certain games.')
     parser.add_argument('--procgen_center_agent', type=parse_bool, default=True, help='determines whether observations are centered on the agent or display the full level. Override at your own risk.')
@@ -102,4 +98,66 @@ def read_args():
     parser.add_argument('--procgen_restrict_themes', type=parse_bool, default=False, help='some games select assets from multiple themes, if this flag is set to True, those games will only use a single theme.')
     parser.add_argument('--procgen_use_monochrome_assets', type=parse_bool, default=False, help='if set to True, games will use monochromatic rectangles instead of human designed assets. best used with restrict_themes=True.')
     args = parser.parse_args()
-    return prep_args(args)
+
+    # some initial checks to ensure all arguments are valid
+    assert (args.sync_dqn_target_every % args.parallel_envs) == 0 # otherwise target may not be synced since the main loop iterates in steps of parallel_envs
+    assert args.loss_fn in ('mse', 'huber')
+    assert (args.lr_decay_steps is None) == (args.lr_decay_factor is None)
+    assert args.burnin > args.batch_size
+
+    # apply default values if user did not specify custom settings
+    if args.adam_eps is None: args.adam_eps = 0.005/args.batch_size
+    if args.prioritized_er_time is None: args.prioritized_er_time = args.training_frames
+
+    if args.env_name.startswith('gym:'):
+        if args.frame_skip is None: args.frame_skip = 4
+        if args.frame_stack is None: args.frame_stack = 4
+        if args.resolution is None: args.resolution = (84, 84)
+        if args.grayscale is None: args.grayscale = True
+    elif args.env_name.startswith('retro:'):
+        if args.frame_skip is None: args.frame_skip = 4
+        if args.frame_stack is None: args.frame_stack = 4
+        if args.resolution is None: args.resolution = (80, 80)
+        if args.grayscale is None: args.grayscale = False
+        if not args.subproc_vecenv: print('[WARNING] subproc_vecenv was forcibly enabled since retro envs need to run in subprocesses anyway!')
+        args.subproc_vecenv = True
+    elif args.env_name.startswith('procgen:'):
+        if args.frame_skip is None: args.frame_skip = 1
+        if args.frame_stack is None: args.frame_stack = 4
+        if args.resolution is None: args.resolution = args.resolution = (64, 64)
+        if args.grayscale is None: args.grayscale = False
+        args.time_limit = None
+
+    # hyperparameters for DER are adapted from https://github.com/Kaixhin/Rainbow
+    if args.der:
+        args.parallel_envs = 1
+        args.batch_size = 32
+        args.train_count = 1
+        args.burnin = 6400
+        args.n_step = 20
+        args.sync_dqn_target_every = 8000
+        args.buffer_size = 2 ** 17
+        args.lr = 0.00025
+        args.adam_eps = 0.0003125
+
+    # turn off e-greedy exploration if noisy_dqn is enabled
+    if args.noisy_dqn:
+        args.init_eps = 0.0
+        args.final_eps = 0.0
+
+    # clean up the parameters that get logged to wandb
+    args.instance = socket.gethostname()
+    wandb_log_config = deepcopy(vars(args))
+    wandb_log_config['env_type'] = args.env_name[:args.env_name.find(':')]
+    del wandb_log_config['record_every']
+    del wandb_log_config['use_wandb']
+    if not args.env_name.startswith('retro:'):
+        for k in list(wandb_log_config.keys()):
+            if k.startswith('retro'):
+                del wandb_log_config[k]
+    if not args.env_name.startswith('procgen:'):
+        for k in list(wandb_log_config.keys()):
+            if k.startswith('procgen'):
+                del wandb_log_config[k]
+
+    return args, wandb_log_config

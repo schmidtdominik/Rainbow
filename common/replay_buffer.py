@@ -65,7 +65,9 @@ class UniformReplayBuffer:
 
 
 class PrioritizedReplayBuffer:
-    """ based on https://nn.labml.ai/rl/dqn, removed alpha hyperparameter like google/dopamine """
+    """ based on https://nn.labml.ai/rl/dqn, supports n-step bootstrapping and parallel environments,
+    removed alpha hyperparameter like google/dopamine
+    """
 
     def __init__(self, burnin: int, capacity: int, gamma: float, n_step: int, parallel_envs: int, use_amp):
         self.burnin = burnin

@@ -1,15 +1,20 @@
+"""
+This files handles some of the internals for vectorized environments.
+"""
+
 from collections import deque
 from copy import deepcopy
-from typing import Tuple, Union, Dict, List, Any
 
 from gym.spaces import Box
 from gym.wrappers import LazyFrames
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecEnvWrapper
 import numpy as np
 
-# slightly modified versions of stable_baselines3's vectorized envs that are compatible with in-env frame-stacking
-
 class DummyVecEnvNoFlatten(DummyVecEnv):
+    """
+    Slightly modified version of stable_baselines3's DummyVecEnv. The main difference is that observations are not
+    flattened before they are returned. This is done to make it work with our lazy frame-stacking class further below.
+    """
 
     def step_wait(self):
         obs_list = []
@@ -33,6 +38,10 @@ class DummyVecEnvNoFlatten(DummyVecEnv):
 
 
 class SubprocVecEnvNoFlatten(SubprocVecEnv):
+    """
+    Slightly modified version of stable_baselines3's SubprocVecEnv. The main difference is that observations are not
+    flattened before they are returned. This is done to make it work with our lazy frame-stacking class further below.
+    """
 
     def step_wait(self):
         results = [remote.recv() for remote in self.remotes]
@@ -49,14 +58,12 @@ class SubprocVecEnvNoFlatten(SubprocVecEnv):
 
 class LazyVecFrameStack(VecEnvWrapper):
     """
-
     Lazy & vectorized frame stacking implementation based on OpenAI-Baselines FrameStack and Stable-Baselines-3 VecFrameStack wrappers.
 
     Args:
         env (Env): environment object
         num_stack (int): number of stacks
         lz4_compress (bool): use lz4 to compress the frames internally
-
     """
     def __init__(self, venv, num_stack, parallel_envs, clone_arrays, lz4_compress=False):
         super().__init__(venv)
@@ -83,7 +90,6 @@ class LazyVecFrameStack(VecEnvWrapper):
 
         # Note: copying all the arrays here is necessary to prevent some weird memory leak when using procgen with DummyVecEnv
         # (SubprocVecenv copies the arrays anyway when moving them to the main process)
-
         if self.clone_arrays:
             for i, observation in enumerate(observations):
                 self.frames[i].append(observation.copy())
