@@ -55,3 +55,13 @@ For more configuration options please take a look at `common/argp.py` or run `py
 - About 15GB RAM are required. When using a larger replay buffer or subprocess envs, memory use may be *much* higher
 - Hyperparameters can be configured through command line arguments, defaults can be found in `common/argp.py`
 - For fastest training throughput use `batch_size=512, parallel_envs=64, train_count=1, subproc_vecenv=True`
+
+### Acknowledgements
+
+We are very grateful to the TU Wien DataLab for providing the majority of the compute resources that were necessary to perform the experiments.
+
+Here are some other implementations and resources that were helpful in the completion of this project:
+- OpenAI Baselines (especially for preprocessing and Atari wrappers)
+- https://github.com/vwxyzjn/cleanrl/blob/master/cleanrl/dqn_atari.py
+- https://github.com/Kaixhin/Rainbow/
+- https://github.com/Kaixhin/Rainbow/wiki/Matteo's-Notes
