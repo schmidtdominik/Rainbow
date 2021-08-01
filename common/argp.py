@@ -56,9 +56,9 @@ def read_args():
     parser.add_argument('--gamma', type=float, default=0.99, help='reward discount factor')
     parser.add_argument('--sync_dqn_target_every', type=int, default=32_000, help='sync Q target net every n frames')
 
-    parser.add_argument('--batch_size', type=int, default=128, help='sample size when sampling from the replay buffer')
-    parser.add_argument('--parallel_envs', type=int, default=16, help='number of envs in the vectorized env')
-    parser.add_argument('--train_count', type=int, default=1, help='how often to train on a batch_size batch for every step (of the vectorized env)')
+    parser.add_argument('--batch_size', type=int, default=256, help='sample size when sampling from the replay buffer')
+    parser.add_argument('--parallel_envs', type=int, default=64, help='number of envs in the vectorized env')
+    parser.add_argument('--train_count', type=int, default=2, help='how often to train on a batch_size batch for every step (of the vectorized env)')
     parser.add_argument('--subproc_vecenv', type=parse_bool, default=False, help='whether to run each environment in it\'s own subprocess (always enabled for gym-retro)')
 
     # rainbow settings
