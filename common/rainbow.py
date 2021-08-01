@@ -88,7 +88,7 @@ class Rainbow:
             max_q = torch.max(self.q_target(next_state), dim=1)[0]
             return reward + self.n_step_gamma * max_q * (1 - done)
 
-    def train(self, batch_size, beta=None) -> Tuple[float, float]:
+    def train(self, batch_size, beta=None) -> Tuple[float, float, float]:
         if self.prioritized_er:
             indices, weights, (state, next_state, action, reward, done) = self.buffer.sample(batch_size, beta)
             weights = torch.from_numpy(weights).cuda()
@@ -113,14 +113,14 @@ class Rainbow:
         self.scaler.scale(loss).backward()
 
         self.scaler.unscale_(self.opt)
-        nn.utils.clip_grad_norm_(list(self.q_policy.parameters()), self.max_grad_norm)
+        grad_norm = nn.utils.clip_grad_norm_(list(self.q_policy.parameters()), self.max_grad_norm)
         self.scaler.step(self.opt)
         self.scaler.update()
 
         if self.decay_lr:
             self.scheduler.step()
 
-        return td_est.mean().item(), loss.item()
+        return td_est.mean().item(), loss.item(), grad_norm.item()
 
     def save(self, game_frame, **kwargs):
         save_path = (self.save_dir + f"/checkpoint_{game_frame}.pt")

@@ -58,9 +58,10 @@ if __name__ == '__main__':
 
     episode_count = 0
     returns = deque(maxlen=100)
-    losses = deque(maxlen=20)
-    q_values = deque(maxlen=20)
-    iter_times = deque(maxlen=20)
+    losses = deque(maxlen=10)
+    q_values = deque(maxlen=10)
+    grad_norms = deque(maxlen=10)
+    iter_times = deque(maxlen=10)
     reward_density = 0
 
     # main training loop:
@@ -85,8 +86,9 @@ if __name__ == '__main__':
         if rainbow.buffer.burnedin:
             for train_iter in range(args.train_count):
                 if args.noisy_dqn and train_iter > 0: rainbow.reset_noise(rainbow.q_policy)
-                q, loss = rainbow.train(args.batch_size, beta=per_beta)
+                q, loss, grad_norm = rainbow.train(args.batch_size, beta=per_beta)
                 losses.append(loss)
+                grad_norms.append(grad_norm)
                 q_values.append(q)
 
         # copy the Q-policy weights over to the Q-target net
@@ -109,7 +111,7 @@ if __name__ == '__main__':
 
                 log = {'x/game_frame': game_frame + j, 'x/episode': episode_count,
                        'ep/return': episode_metrics['return'], 'ep/length': episode_metrics['length'], 'ep/time': episode_metrics['time'],
-                       'ep/mean_reward_per_frame': episode_metrics['return'] / (episode_metrics['length'] + 1),
+                       'ep/mean_reward_per_frame': episode_metrics['return'] / (episode_metrics['length'] + 1), 'grad_norm': np.mean(grad_norms),
                        'mean_loss': np.mean(losses), 'mean_q_value': np.mean(q_values), 'fps': args.parallel_envs / np.mean(iter_times),
                        'running_avg_return': np.mean(returns), 'lr': rainbow.opt.param_groups[0]['lr'], 'reward_density': reward_density}
                 if args.prioritized_er: log['per_beta'] = per_beta
