@@ -1,3 +1,4 @@
+import zlib
 from copy import deepcopy
 import torch
 from tqdm.auto import trange
@@ -52,3 +53,6 @@ def get_mean_ep_length(args):
     dc_env.close()
     mean_length = sum(ep_lengths)/len(ep_lengths)
     return mean_length
+
+def env_seeding(user_seed, env_name):
+    return user_seed + zlib.adler32(bytes(env_name, encoding='utf-8')) % 10000

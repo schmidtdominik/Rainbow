@@ -9,6 +9,8 @@ import random
 import socket
 from copy import deepcopy
 
+from common.utils import env_seeding
+
 
 def read_args():
     parse_bool = lambda b: bool(distutils.util.strtobool(b))
@@ -106,6 +108,9 @@ def read_args():
     assert (args.lr_decay_steps is None) == (args.lr_decay_factor is None)
     assert args.burnin > args.batch_size
 
+    args.user_seed = args.seed
+    args.seed = env_seeding(args.user_seed, args.env_name)
+
     # apply default values if user did not specify custom settings
     if args.adam_eps is None: args.adam_eps = 0.005/args.batch_size
     if args.prioritized_er_time is None: args.prioritized_er_time = args.training_frames
@@ -113,7 +118,7 @@ def read_args():
     if args.env_name.startswith('gym:'):
         if args.frame_skip is None: args.frame_skip = 4
         if args.frame_stack is None: args.frame_stack = 4
-        if args.resolution is None: args.resolution = (84, 84)
+        if args.resolution is None: args.resolution = (80, 80)
         if args.grayscale is None: args.grayscale = True
     elif args.env_name.startswith('retro:'):
         if args.frame_skip is None: args.frame_skip = 4

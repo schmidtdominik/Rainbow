@@ -27,7 +27,7 @@ if __name__ == '__main__':
     torch.manual_seed(args.seed)
 
     # set up logging & model checkpoints
-    wandb.init(project='rainbow', save_code=True, config=wandb_log_config,
+    wandb.init(project='rainbow', save_code=True, config=dict(**wandb_log_config, log_version=100),
                mode=('online' if args.use_wandb else 'offline'), anonymous='allow')
     save_dir = Path("checkpoints") / wandb.run.name
     save_dir.mkdir(parents=True)
@@ -137,7 +137,6 @@ if __name__ == '__main__':
         iter_times.append(time.time() - iter_start)
         t.set_description(f' [{game_frame:>8} frames, {episode_count:>5} episodes]', refresh=False)
 
-    rainbow.save(game_frame + args.parallel_envs, args=args, run_name=wandb.run.name, run_id=wandb.run.id, target_metric=np.mean(returns))
     wandb.log({'x/game_frame': game_frame + args.parallel_envs, 'x/episode': episode_count,
                'x/train_step': (game_frame + args.parallel_envs) // args.parallel_envs * args.train_count,
                'x/emulator_frame': (game_frame + args.parallel_envs) * args.frame_skip})
