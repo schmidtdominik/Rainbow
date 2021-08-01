@@ -550,7 +550,7 @@ def create_env_instance(args, instance, decorr_steps):
     if args.env_name.startswith('retro:'): env = create_retro_env(args, instance_seed, instance, decorr_steps)
     elif args.env_name.startswith('gym:'): env = create_atari_env(args, instance_seed, instance, decorr_steps)
     elif args.env_name.startswith('procgen:'): env = create_procgen_env(args, instance_seed, instance)
-
+    else: raise RuntimeError('Environment id needs to start with "gym:", "retro:" or "procgen:".')
     if not args.env_name.startswith('procgen:'):
         env.seed(instance_seed)
         env.action_space.seed(instance_seed)

@@ -62,6 +62,7 @@ def read_args():
     # rainbow settings
     parser.add_argument('--network_arch', type=str, default='impala_large:2',
                         help='which model architecture to use for the q-network; one of "nature", "dueling", "impala_small", "impala_large:c" (c is the number of channels in impala large)')
+    parser.add_argument('--spectral_norm', type=parse_bool, default=False, help='whether to use spectral normalization for IMPALA-large conv layers')
     parser.add_argument('--double_dqn', type=parse_bool, default=True, help='whether to use the double-dqn TD-target')
     parser.add_argument('--prioritized_er', type=parse_bool, default=True, help='whether to use prioritized experience replay')
     parser.add_argument('--prioritized_er_beta0', type=float, default=0.4, help='importance sampling exponent for PER (0.4 for rainbow, 0.5 for dopamine)')

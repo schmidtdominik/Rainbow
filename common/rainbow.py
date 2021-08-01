@@ -22,7 +22,7 @@ class Rainbow:
         self.save_dir = args.save_dir
         self.use_amp = args.use_amp
 
-        net = networks.get_model(args.network_arch)
+        net = networks.get_model(args.network_arch, args.spectral_norm)
         linear_layer = partial(networks.FactorizedNoisyLinear, sigma_0=args.noisy_sigma0) if args.noisy_dqn else nn.Linear
         depth = args.frame_stack*(1 if args.grayscale else 3)
         self.q_policy = net(depth, env.action_space.n, linear_layer, resolution=args.resolution).cuda()
