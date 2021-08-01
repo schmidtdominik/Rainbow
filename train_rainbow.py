@@ -67,7 +67,8 @@ if __name__ == '__main__':
     # we will do a total of args.training_frames/args.parallel_envs iterations
     # in each iteration we perform one interaction step in each of the args.parallel_envs environments,
     # and args.train_count training steps on batches of size args.batch_size
-    for game_frame in trange(0, args.training_frames + 1, args.parallel_envs):
+    t = trange(0, args.training_frames + 1, args.parallel_envs)
+    for game_frame in t:
         iter_start = time.time()
         eps = eps_schedule(game_frame)
         per_beta = per_beta_schedule(game_frame)
@@ -124,13 +125,14 @@ if __name__ == '__main__':
                 episode_count += 1
 
         if game_frame % (50_000-(50_000 % args.parallel_envs)) == 0:
-            print(f' [{game_frame:>8} frames, {episode_count:>5} episodes] 100-episode running average return = {np.mean(returns)}')
+            print(f' [{game_frame:>8} frames, {episode_count:>5} episodes] running average return = {np.mean(returns)}')
 
         # every 1M frames, save a model checkpoint to disk and wandb
         if game_frame % 1_000_000 == 0 and game_frame > 0:
             rainbow.save(game_frame, args=args, run_name=wandb.run.name, run_id=wandb.run.id, target_metric=np.mean(returns))
 
         iter_times.append(time.time() - iter_start)
+        t.set_description(f' [{game_frame:>8} frames, {episode_count:>5} episodes]', refresh=False)
 
     rainbow.save(game_frame + args.parallel_envs, args=args, run_name=wandb.run.name, run_id=wandb.run.id, target_metric=np.mean(returns))
     wandb.log({'x/game_frame': game_frame + args.parallel_envs, 'x/episode': episode_count,

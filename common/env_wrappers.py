@@ -304,21 +304,12 @@ class StochasticFrameSkip(gym.Wrapper):
 
 
 class ClipRewardEnv(gym.Wrapper):
-    def __init__(self, env, frame_skip_aware=False):
+    def __init__(self, env):
         super().__init__(env)
-        # only makes a difference when there a multiple nonzero rewards within the frame skip window
-        self.frame_skip_aware = frame_skip_aware
 
     def step(self, action):
         obs, reward, done, info = self.env.step(action)
-
-        if not self.frame_skip_aware:
-            reward = np.sign(reward)
-        else:
-            assert 'actual_rewards' in info
-            reward = np.sign(info['actual_rewards']).mean() * 4
-
-        return obs, reward.astype(np.float32), done, info
+        return obs, np.sign(reward).astype(np.float32), done, info
 
 
 class RecorderWrapper(gym.Wrapper):
@@ -413,8 +404,6 @@ class WarpFrame(gym.ObservationWrapper):
         if self._grayscale:
             frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
         if frame.shape[0] != self._height or frame.shape[1] != self._width:  # ds maybe
-            #if (self._height != self._width and frame.shape[0] != frame.shape[1]) and ((frame.shape[0] > frame.shape[1]) != (self._height > self._width)):
-            #    frame = frame.transpose(1, 0, 2)
             frame = cv2.resize(frame, (self._width, self._height), interpolation=self.interp)
         if self._grayscale:
             frame = np.expand_dims(frame, -1)

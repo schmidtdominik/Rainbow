@@ -38,7 +38,7 @@ class LinearSchedule:
 def get_mean_ep_length(args):
     """Run a few iterations of the environment and estimate the mean episode length"""
     dc_args = deepcopy(args)
-    dc_args.parallel_envs = 4
+    dc_args.parallel_envs = 6
     dc_args.subproc_vecenv = True
     dc_env = create_env(dc_args)
     dc_env.reset()
