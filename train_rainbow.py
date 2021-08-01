@@ -128,6 +128,7 @@ if __name__ == '__main__':
 
         if game_frame % (50_000-(50_000 % args.parallel_envs)) == 0:
             print(f' [{game_frame:>8} frames, {episode_count:>5} episodes] running average return = {np.mean(returns)}')
+            torch.cuda.empty_cache()
 
         # every 1M frames, save a model checkpoint to disk and wandb
         if game_frame % 1_000_000 == 0 and game_frame > 0:
