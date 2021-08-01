@@ -25,26 +25,31 @@ class RecordEpisodeStatistics(gym.Wrapper):
     """
     Wrapper that records episode statistics.
     """
-    def __init__(self, env):
+    def __init__(self, env, gamma):
         super(RecordEpisodeStatistics, self).__init__(env)
         self.t0 = time.time()
         self.episode_return = 0.0
         self.episode_length = 0
+        self.episode_discounted_return = 0.0
+        self.gamma = gamma
 
     def reset(self, **kwargs):
         observation = super(RecordEpisodeStatistics, self).reset(**kwargs)
         self.episode_return = 0.0
         self.episode_length = 0
+        self.episode_discounted_return = 0.0
         return observation
 
     def step(self, action):
         observation, reward, done, info = super(RecordEpisodeStatistics, self).step(action)
         self.episode_return += reward
+        self.episode_discounted_return += reward * self.gamma**self.episode_length
         self.episode_length += 1
         if done:
             info['episode_metrics'] = {'return': self.episode_return,
                                        'length': self.episode_length,
-                                       'time': round(time.time() - self.t0, 6)}
+                                       'time': round(time.time() - self.t0, 6),
+                                       'discounted_return': self.episode_discounted_return}
 
             self.episode_return = 0.0
             self.episode_length = 0
@@ -465,7 +470,7 @@ def create_atari_env(config, instance_seed, instance, decorr_steps):
     env = NoopResetEnv(env, instance_seed, noop_max=30)
     env = MaxAndSkipEnv(env, skip=config.frame_skip)
 
-    env = RecordEpisodeStatistics(env)  # this has to be applied before the EpisodicLifeEnv wrapper!
+    env = RecordEpisodeStatistics(env, config.gamma)  # this has to be applied before the EpisodicLifeEnv wrapper!
 
     # NOTE: it's unclear whether using the EpisodicLifeEnv and FireResetEnv wrappers yield any benefits
     # see https://github.com/openai/baselines/issues/240#issuecomment-391165056
@@ -507,7 +512,7 @@ def create_retro_env(config, instance_seed, instance, decorr_steps):
     env = TimeLimit(env, max_episode_steps=config.time_limit)
     if config.frame_skip > 1:
         env = StochasticFrameSkip(env, seed=instance_seed, n=config.frame_skip, stickprob=config.retro_stickyprob)
-    env = RecordEpisodeStatistics(env)
+    env = RecordEpisodeStatistics(env, config.gamma)
     env = RetroEpisodicLifeEnv(env)
     env = ClipRewardEnv(env)
     env = WarpFrame(env, width=config.resolution[1], height=config.resolution[0], grayscale=config.grayscale)
@@ -532,7 +537,7 @@ def create_procgen_env(config, instance_seed, instance):
         print('Frame skipping for procgen enabled!')
         env = SkipFrameEnv(env, config.frame_skip)
 
-    env = RecordEpisodeStatistics(env)
+    env = RecordEpisodeStatistics(env, config.gamma)
 
     # Note: openai doesn't use reward clipping for procgen with ppo & rainbow (https://arxiv.org/pdf/1912.01588.pdf)
     # env = ClipRewardEnv(env)

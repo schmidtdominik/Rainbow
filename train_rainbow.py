@@ -58,6 +58,7 @@ if __name__ == '__main__':
 
     episode_count = 0
     returns = deque(maxlen=100)
+    discounted_returns = deque(maxlen=10)
     losses = deque(maxlen=10)
     q_values = deque(maxlen=10)
     grad_norms = deque(maxlen=10)
@@ -108,12 +109,14 @@ if __name__ == '__main__':
             if 'episode_metrics' in info.keys():
                 episode_metrics = info['episode_metrics']
                 returns.append(episode_metrics['return'])
+                discounted_returns.append(episode_metrics['discounted_return'])
 
                 log = {'x/game_frame': game_frame + j, 'x/episode': episode_count,
                        'ep/return': episode_metrics['return'], 'ep/length': episode_metrics['length'], 'ep/time': episode_metrics['time'],
                        'ep/mean_reward_per_frame': episode_metrics['return'] / (episode_metrics['length'] + 1), 'grad_norm': np.mean(grad_norms),
                        'mean_loss': np.mean(losses), 'mean_q_value': np.mean(q_values), 'fps': args.parallel_envs / np.mean(iter_times),
-                       'running_avg_return': np.mean(returns), 'lr': rainbow.opt.param_groups[0]['lr'], 'reward_density': reward_density}
+                       'running_avg_return': np.mean(returns), 'lr': rainbow.opt.param_groups[0]['lr'], 'reward_density': reward_density,
+                       'discounted_return': np.mean(discounted_returns)}
                 if args.prioritized_er: log['per_beta'] = per_beta
                 if eps > 0: log['epsilon'] = eps
 
