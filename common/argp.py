@@ -59,7 +59,7 @@ def read_args():
     parser.add_argument('--batch_size', type=int, default=256, help='sample size when sampling from the replay buffer')
     parser.add_argument('--parallel_envs', type=int, default=64, help='number of envs in the vectorized env')
     parser.add_argument('--train_count', type=int, default=2, help='how often to train on a batch_size batch for every step (of the vectorized env)')
-    parser.add_argument('--subproc_vecenv', type=parse_bool, default=False, help='whether to run each environment in it\'s own subprocess (always enabled for gym-retro)')
+    parser.add_argument('--subproc_vecenv', type=parse_bool, default=True, help='whether to run each environment in it\'s own subprocess (always enabled for gym-retro)')
 
     # rainbow settings
     parser.add_argument('--network_arch', type=str, default='impala_large:2',
@@ -67,7 +67,7 @@ def read_args():
     parser.add_argument('--spectral_norm', type=parse_bool, default=False, help='whether to use spectral normalization for IMPALA-large conv layers')
     parser.add_argument('--double_dqn', type=parse_bool, default=True, help='whether to use the double-dqn TD-target')
     parser.add_argument('--prioritized_er', type=parse_bool, default=True, help='whether to use prioritized experience replay')
-    parser.add_argument('--prioritized_er_beta0', type=float, default=0.4, help='importance sampling exponent for PER (0.4 for rainbow, 0.5 for dopamine)')
+    parser.add_argument('--prioritized_er_beta0', type=float, default=0.45, help='importance sampling exponent for PER (0.4 for rainbow, 0.5 for dopamine)')
     parser.add_argument('--prioritized_er_time', type=int, default=None, help='time period over which to increase the IS exponent (+inf for dopamine; default is value of training_frames)')
     parser.add_argument('--n_step', type=int, default=3, help='the n in n-step bootstrapping')
     parser.add_argument('--init_eps', type=float, default=1.0, help='initial dqn exploration epsilon (when not using noisy-nets)')
@@ -118,7 +118,7 @@ def read_args():
     if args.env_name.startswith('gym:'):
         if args.frame_skip is None: args.frame_skip = 4
         if args.frame_stack is None: args.frame_stack = 4
-        if args.resolution is None: args.resolution = (80, 80)
+        if args.resolution is None: args.resolution = (84, 84)
         if args.grayscale is None: args.grayscale = True
     elif args.env_name.startswith('retro:'):
         if args.frame_skip is None: args.frame_skip = 4
@@ -148,8 +148,9 @@ def read_args():
 
     # turn off e-greedy exploration if noisy_dqn is enabled
     if args.noisy_dqn:
-        args.init_eps = 0.0
+        args.init_eps = 0.004
         args.final_eps = 0.0
+        args.eps_decay_frames = 80_000
 
     # clean up the parameters that get logged to wandb
     args.instance = socket.gethostname()

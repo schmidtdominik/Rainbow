@@ -134,8 +134,9 @@ if __name__ == '__main__':
             torch.cuda.empty_cache()
 
         # every 1M frames, save a model checkpoint to disk and wandb
-        if game_frame % 1_000_000 == 0 and game_frame > 0:
+        if game_frame % (500_000-(500_000 % args.parallel_envs)) == 0 and game_frame > 0:
             rainbow.save(game_frame, args=args, run_name=wandb.run.name, run_id=wandb.run.id, target_metric=np.mean(returns))
+            print(f'Model saved at {game_frame} frames.')
 
         iter_times.append(time.time() - iter_start)
         t.set_description(f' [{game_frame:>8} frames, {episode_count:>5} episodes]', refresh=False)

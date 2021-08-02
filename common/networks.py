@@ -227,21 +227,24 @@ class ImpalaCNNLarge(nn.Module):
             nn.ReLU()
         )
 
-        shape = self.main(torch.zeros(1, in_depth, resolution[0], resolution[1])).shape
-        assert shape[0] == 1
-        assert shape[1] == 32*model_size
+        #shape = self.main(torch.zeros(1, in_depth, resolution[0], resolution[1])).shape
+        #assert shape[0] == 1
+        #assert shape[1] == 32*model_size
+
+        self.pool = torch.nn.AdaptiveMaxPool2d((8, 8))
 
         self.dueling = Dueling(
-            nn.Sequential(linear_layer(shape[2]*shape[3]*32*model_size, 256),
+            nn.Sequential(linear_layer(2048*model_size, 256),
                           nn.ReLU(),
                           linear_layer(256, 1)),
-            nn.Sequential(linear_layer(shape[2]*shape[3]*32*model_size, 256),
+            nn.Sequential(linear_layer(2048*model_size, 256),
                           nn.ReLU(),
                           linear_layer(256, actions))
         )
 
     def forward(self, x, advantages_only=False):
         f = self.main(x)
+        f = self.pool(f)
         return self.dueling(f, advantages_only=advantages_only)
 
 def get_model(model_str, spectral_norm):
