@@ -43,6 +43,7 @@ def read_args():
                              'imited compute resources.')
     parser.add_argument('--retro_state', type=str, default='default', help='initial gym-retro state name or "default" or "randomized" (to randomize on episode reset)')
     parser.add_argument('--time_limit', type=int, default=108_000, help='environment time limit for gym & retro (in non-frameskipped native env frames)')
+    parser.add_argument('--eid', type=int, default=None, help='')
 
     # env preprocessing settings
     parser.add_argument('--frame_skip', type=int, default=None, help='use only every nth env frame (default is to use environment specific presets)')
@@ -107,6 +108,11 @@ def read_args():
     assert args.loss_fn in ('mse', 'huber')
     assert (args.lr_decay_steps is None) == (args.lr_decay_factor is None)
     assert args.burnin > args.batch_size
+
+    if args.eid is not None:
+        args.env_name = ['gym:Breakout', 'gym:YarsRevenge', 'gym:NameThisGame', 'gym:SpaceInvaders',
+                         'gym:Tennis', 'gym:WizardOfWor', 'gym:Centipede', 'gym:Atlantis', 'gym:Enduro',
+                         'gym:BeamRider'][args.eid]
 
     args.user_seed = args.seed
     args.seed = env_seeding(args.user_seed, args.env_name)
