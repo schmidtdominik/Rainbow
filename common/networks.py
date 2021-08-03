@@ -88,7 +88,7 @@ class Dueling(nn.Module):
 
 class DuelingAlt(nn.Module):
     """ The dueling branch used in all nets that use dueling-dqn. """
-    def __init__(self, l1=linear_layer(2048 * model_size, 512), l2=linear_layer(512, actions+1)):
+    def __init__(self, l1, l2):
         super().__init__()
         self.main = nn.Sequential(
             nn.Flatten(),
@@ -98,9 +98,9 @@ class DuelingAlt(nn.Module):
         )
 
     def forward(self, x, advantages_only=False):
-        res = self.main()
+        res = self.main(x)
         advantages = res[:, 1:]
-        value = res[:, 0]
+        value = res[:, 0:1]
         return value + (advantages - torch.mean(advantages, dim=1, keepdim=True))
 
 class NatureCNN(nn.Module):
@@ -198,8 +198,8 @@ class ImpalaCNNResidual(nn.Module):
         super().__init__()
 
         self.relu = nn.ReLU()
-        self.conv_0 = (nn.Conv2d(in_channels=depth, out_channels=depth, kernel_size=3, stride=1, padding=1))
-        self.conv_1 = (nn.Conv2d(in_channels=depth, out_channels=depth, kernel_size=3, stride=1, padding=1))
+        self.conv_0 = norm_func(nn.Conv2d(in_channels=depth, out_channels=depth, kernel_size=3, stride=1, padding=1))
+        self.conv_1 = norm_func(nn.Conv2d(in_channels=depth, out_channels=depth, kernel_size=3, stride=1, padding=1))
 
     def forward(self, x):
         x_ = self.conv_0(self.relu(x))
@@ -215,7 +215,7 @@ class ImpalaCNNBlock(nn.Module):
     def __init__(self, depth_in, depth_out, norm_func):
         super().__init__()
 
-        self.conv = norm_func(nn.Conv2d(in_channels=depth_in, out_channels=depth_out, kernel_size=3, stride=1, padding=1))
+        self.conv = (nn.Conv2d(in_channels=depth_in, out_channels=depth_out, kernel_size=3, stride=1, padding=1))
         self.max_pool = nn.MaxPool2d(3, 2, padding=1)
         self.residual_0 = ImpalaCNNResidual(depth_out, norm_func=norm_func)
         self.residual_1 = ImpalaCNNResidual(depth_out, norm_func=norm_func)
@@ -258,6 +258,7 @@ class ImpalaCNNLarge(nn.Module):
                           nn.ReLU(),
                           linear_layer(256, actions))
         )
+        #self.dueling = DuelingAlt(linear_layer(2048 * model_size, 512), linear_layer(512, actions + 1))
 
     def forward(self, x, advantages_only=False):
         f = self.main(x)
