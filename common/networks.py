@@ -86,6 +86,23 @@ class Dueling(nn.Module):
         return value + (advantages - torch.mean(advantages, dim=1, keepdim=True))
 
 
+class DuelingAlt(nn.Module):
+    """ The dueling branch used in all nets that use dueling-dqn. """
+    def __init__(self, l1=linear_layer(2048 * model_size, 512), l2=linear_layer(512, actions+1)):
+        super().__init__()
+        self.main = nn.Sequential(
+            nn.Flatten(),
+            l1,
+            nn.ReLU(),
+            l2
+        )
+
+    def forward(self, x, advantages_only=False):
+        res = self.main()
+        advantages = res[:, 1:]
+        value = res[:, 0]
+        return value + (advantages - torch.mean(advantages, dim=1, keepdim=True))
+
 class NatureCNN(nn.Module):
     """
     This is the CNN that was introduced in Mnih et al. (2013) and then used in a lot of later work such as
@@ -181,8 +198,8 @@ class ImpalaCNNResidual(nn.Module):
         super().__init__()
 
         self.relu = nn.ReLU()
-        self.conv_0 = norm_func(nn.Conv2d(in_channels=depth, out_channels=depth, kernel_size=3, stride=1, padding=1))
-        self.conv_1 = norm_func(nn.Conv2d(in_channels=depth, out_channels=depth, kernel_size=3, stride=1, padding=1))
+        self.conv_0 = (nn.Conv2d(in_channels=depth, out_channels=depth, kernel_size=3, stride=1, padding=1))
+        self.conv_1 = (nn.Conv2d(in_channels=depth, out_channels=depth, kernel_size=3, stride=1, padding=1))
 
     def forward(self, x):
         x_ = self.conv_0(self.relu(x))
