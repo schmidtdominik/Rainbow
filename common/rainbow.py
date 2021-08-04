@@ -25,9 +25,14 @@ class Rainbow:
         net = networks.get_model(args.network_arch, args.spectral_norm)
         linear_layer = partial(networks.FactorizedNoisyLinear, sigma_0=args.noisy_sigma0) if args.noisy_dqn else nn.Linear
         depth = args.frame_stack*(1 if args.grayscale else 3)
-        self.q_policy = net(depth, env.action_space.n, linear_layer, resolution=args.resolution).cuda()
-        self.q_target = net(depth, env.action_space.n, linear_layer, resolution=args.resolution).cuda()
+        self.q_policy = net(depth, env.action_space.n, linear_layer).cuda()
+        self.q_target = net(depth, env.action_space.n, linear_layer).cuda()
         self.q_target.load_state_dict(self.q_policy.state_dict())
+
+        k = 0
+        for parameter in self.q_policy.parameters():
+            k += parameter.numel()
+        print(f'Q-Network has {k} parameters.')
 
         self.double_dqn = args.double_dqn
 

@@ -108,7 +108,7 @@ class NatureCNN(nn.Module):
     This is the CNN that was introduced in Mnih et al. (2013) and then used in a lot of later work such as
     Mnih et al. (2015) and the Rainbow paper. This implementation only works with a frame resolution of 84x84.
     """
-    def __init__(self, depth, actions, linear_layer, resolution=None):
+    def __init__(self, depth, actions, linear_layer):
         super().__init__()
 
         self.main = nn.Sequential(
@@ -133,7 +133,7 @@ class DuelingNatureCNN(nn.Module):
     Implementation of the dueling architecture introduced in Wang et al. (2015).
     This implementation only works with a frame resolution of 84x84.
     """
-    def __init__(self, depth, actions, linear_layer, resolution=None):
+    def __init__(self, depth, actions, linear_layer):
         super().__init__()
 
         self.main = nn.Sequential(
@@ -163,7 +163,7 @@ class ImpalaCNNSmall(nn.Module):
     """
     Implementation of the small variant of the IMPALA CNN introduced in Espeholt et al. (2018).
     """
-    def __init__(self, depth, actions, linear_layer, resolution=None):
+    def __init__(self, depth, actions, linear_layer):
         super().__init__()
 
         self.main = nn.Sequential(
@@ -206,8 +206,6 @@ class ImpalaCNNResidual(nn.Module):
         x_ = self.conv_1(self.relu(x_))
         return x+x_
 
-def identity(p): return p
-
 class ImpalaCNNBlock(nn.Module):
     """
     Three of these blocks are used in the large IMPALA CNN.
@@ -215,7 +213,7 @@ class ImpalaCNNBlock(nn.Module):
     def __init__(self, depth_in, depth_out, norm_func):
         super().__init__()
 
-        self.conv = (nn.Conv2d(in_channels=depth_in, out_channels=depth_out, kernel_size=3, stride=1, padding=1))
+        self.conv = norm_func(nn.Conv2d(in_channels=depth_in, out_channels=depth_out, kernel_size=3, stride=1, padding=1))
         self.max_pool = nn.MaxPool2d(3, 2, padding=1)
         self.residual_0 = ImpalaCNNResidual(depth_out, norm_func=norm_func)
         self.residual_1 = ImpalaCNNResidual(depth_out, norm_func=norm_func)
@@ -232,9 +230,10 @@ class ImpalaCNNLarge(nn.Module):
     """
     Implementation of the large variant of the IMPALA CNN introduced in Espeholt et al. (2018).
     """
-    def __init__(self, in_depth, actions, linear_layer, resolution, model_size=1, spectral_norm=False):
+    def __init__(self, in_depth, actions, linear_layer, model_size=1, spectral_norm=False):
         super().__init__()
 
+        def identity(p): return p
         norm_func = torch.nn.utils.spectral_norm if spectral_norm else identity
 
         self.main = nn.Sequential(
@@ -243,10 +242,6 @@ class ImpalaCNNLarge(nn.Module):
             ImpalaCNNBlock(32*model_size, 32*model_size, norm_func=norm_func),
             nn.ReLU()
         )
-
-        #shape = self.main(torch.zeros(1, in_depth, resolution[0], resolution[1])).shape
-        #assert shape[0] == 1
-        #assert shape[1] == 32*model_size
 
         self.pool = torch.nn.AdaptiveMaxPool2d((8, 8))
 
@@ -258,12 +253,59 @@ class ImpalaCNNLarge(nn.Module):
                           nn.ReLU(),
                           linear_layer(256, actions))
         )
-        #self.dueling = DuelingAlt(linear_layer(2048 * model_size, 512), linear_layer(512, actions + 1))
 
     def forward(self, x, advantages_only=False):
         f = self.main(x)
         f = self.pool(f)
         return self.dueling(f, advantages_only=advantages_only)
+
+class WideImpalaCNNBlock(nn.Module):
+    """
+    Three of these blocks are used in the large IMPALA CNN.
+    """
+    def __init__(self, depth_in, depth_out, norm_func):
+        super().__init__()
+
+        self.conv = norm_func(nn.Conv2d(in_channels=depth_in, out_channels=depth_out, kernel_size=3, stride=1, padding=1))
+        self.max_pool = nn.MaxPool2d(3, 2, padding=1)
+        self.residual_0 = ImpalaCNNResidual(depth_out, norm_func=norm_func)
+        self.residual_1 = ImpalaCNNResidual(depth_out, norm_func=norm_func)
+
+    def forward(self, x):
+        x = self.conv(x)
+        x = self.max_pool(x)
+        x = self.residual_0(x)
+        x = self.residual_1(x)
+        return x
+
+
+class WideImpalaCNNLarge(nn.Module):
+    """
+    Implementation of the large variant of the IMPALA CNN introduced in Espeholt et al. (2018).
+    """
+    def __init__(self, in_depth, actions, linear_layer, model_size=1, spectral_norm=False):
+        super().__init__()
+
+        def identity(p): return p
+        norm_func = torch.nn.utils.spectral_norm if spectral_norm else identity
+
+        self.main = nn.Sequential(
+            norm_func(nn.Conv2d(in_channels=in_depth, out_channels=12*model_size, kernel_size=5, stride=1)),
+            nn.LeakyReLU(),
+            nn.MaxPool2d(2, 2),
+            WideImpalaCNNBlock(12*model_size, 40*model_size, norm_func=norm_func),
+            WideImpalaCNNBlock(40*model_size, 64*model_size, norm_func=norm_func),
+            nn.ReLU()
+        )
+
+        self.pool = torch.nn.AdaptiveMaxPool2d((6, 6))
+        self.dueling = DuelingAlt(linear_layer(64*model_size*6*6, 384), linear_layer(384, actions + 1))
+
+    def forward(self, x, advantages_only=False):
+        f = self.main(x)
+        f = self.pool(f)
+        return self.dueling(f, advantages_only=advantages_only)
+
 
 def get_model(model_str, spectral_norm):
     if model_str == 'nature': return NatureCNN
@@ -271,3 +313,5 @@ def get_model(model_str, spectral_norm):
     elif model_str == 'impala_small': return ImpalaCNNSmall
     elif model_str.startswith('impala_large:'):
         return partial(ImpalaCNNLarge, model_size=int(model_str[13:]), spectral_norm=spectral_norm)
+    elif model_str.startswith('wide_impala_large:'):
+        return partial(WideImpalaCNNLarge, model_size=int(model_str[18:]), spectral_norm=spectral_norm)
