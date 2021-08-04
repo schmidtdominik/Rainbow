@@ -213,7 +213,7 @@ class ImpalaCNNBlock(nn.Module):
     def __init__(self, depth_in, depth_out, norm_func):
         super().__init__()
 
-        self.conv = norm_func(nn.Conv2d(in_channels=depth_in, out_channels=depth_out, kernel_size=3, stride=1, padding=1))
+        self.conv = nn.Conv2d(in_channels=depth_in, out_channels=depth_out, kernel_size=3, stride=1, padding=1)
         self.max_pool = nn.MaxPool2d(3, 2, padding=1)
         self.residual_0 = ImpalaCNNResidual(depth_out, norm_func=norm_func)
         self.residual_1 = ImpalaCNNResidual(depth_out, norm_func=norm_func)
@@ -266,7 +266,7 @@ class WideImpalaCNNBlock(nn.Module):
     def __init__(self, depth_in, depth_out, norm_func):
         super().__init__()
 
-        self.conv = norm_func(nn.Conv2d(in_channels=depth_in, out_channels=depth_out, kernel_size=3, stride=1, padding=1))
+        self.conv = nn.Conv2d(in_channels=depth_in, out_channels=depth_out, kernel_size=3, stride=1, padding=1)
         self.max_pool = nn.MaxPool2d(3, 2, padding=1)
         self.residual_0 = ImpalaCNNResidual(depth_out, norm_func=norm_func)
         self.residual_1 = ImpalaCNNResidual(depth_out, norm_func=norm_func)
@@ -290,7 +290,7 @@ class WideImpalaCNNLarge(nn.Module):
         norm_func = torch.nn.utils.spectral_norm if spectral_norm else identity
 
         self.main = nn.Sequential(
-            norm_func(nn.Conv2d(in_channels=in_depth, out_channels=12*model_size, kernel_size=5, stride=1)),
+            nn.Conv2d(in_channels=in_depth, out_channels=12*model_size, kernel_size=5, stride=1),
             nn.LeakyReLU(),
             nn.MaxPool2d(2, 2),
             WideImpalaCNNBlock(12*model_size, 40*model_size, norm_func=norm_func),
