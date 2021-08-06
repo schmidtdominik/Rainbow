@@ -28,7 +28,7 @@ if __name__ == '__main__':
 
     # set up logging & model checkpoints
     wandb.init(project='rainbow', save_code=True, config=dict(**wandb_log_config, log_version=100),
-               mode=('online' if args.use_wandb else 'offline'), anonymous='allow')
+               mode=('online' if args.use_wandb else 'offline'), anonymous='allow', tags=[args.wandb_tag] if args.wandb_tag else [])
     save_dir = Path("checkpoints") / wandb.run.name
     save_dir.mkdir(parents=True)
     args.save_dir = str(save_dir)
@@ -65,6 +65,9 @@ if __name__ == '__main__':
     iter_times = deque(maxlen=10)
     reward_density = 0
 
+    returns_all = []
+    q_values_all = []
+
     # main training loop:
     # we will do a total of args.training_frames/args.parallel_envs iterations
     # in each iteration we perform one interaction step in each of the args.parallel_envs environments,
@@ -91,6 +94,7 @@ if __name__ == '__main__':
                 losses.append(loss)
                 grad_norms.append(grad_norm)
                 q_values.append(q)
+                q_values_all.append((game_frame, q))
 
         # copy the Q-policy weights over to the Q-target net
         # (see also https://github.com/spragunr/deep_q_rl/blob/master/deep_q_rl/launcher.py#L155)
@@ -109,6 +113,7 @@ if __name__ == '__main__':
             if 'episode_metrics' in info.keys():
                 episode_metrics = info['episode_metrics']
                 returns.append(episode_metrics['return'])
+                returns_all.append((game_frame, episode_metrics['return']))
                 discounted_returns.append(episode_metrics['discounted_return'])
 
                 log = {'x/game_frame': game_frame + j, 'x/episode': episode_count,
@@ -135,7 +140,7 @@ if __name__ == '__main__':
 
         # every 1M frames, save a model checkpoint to disk and wandb
         if game_frame % (500_000-(500_000 % args.parallel_envs)) == 0 and game_frame > 0:
-            rainbow.save(game_frame, args=args, run_name=wandb.run.name, run_id=wandb.run.id, target_metric=np.mean(returns))
+            rainbow.save(game_frame, args=args, run_name=wandb.run.name, run_id=wandb.run.id, target_metric=np.mean(returns), returns_all=returns_all, q_values_all=q_values_all)
             print(f'Model saved at {game_frame} frames.')
 
         iter_times.append(time.time() - iter_start)

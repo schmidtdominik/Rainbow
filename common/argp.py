@@ -24,7 +24,7 @@ def read_args():
     # training settings
     parser.add_argument('--training_frames', type=int, default=10_000_000, help='train for n environment interactions ("game_frames" in the code)')
     parser.add_argument('--record_every', type=int, default=60*50, help='wait at least x seconds between episode recordings (default is to use environment specific presets)')
-    parser.add_argument('--seed', type=int, default=random.randint(0, 10000), help='seed for pytorch, numpy, environments, random')
+    parser.add_argument('--seed', type=int, default=0, help='seed for pytorch, numpy, environments, random')
     parser.add_argument('--use_wandb', type=parse_bool, default=True, help='whether use "weights & biases" for tracking metrics, video recordings and model checkpoints')
     parser.add_argument('--use_amp', type=parse_bool, default=True, help='whether to enable automatic mixed precision for the forward passes')
     parser.add_argument('--der', type=parse_bool, default=False, help='enable data-efficient-rainbow profile (overrides some of the settings below)')
@@ -44,6 +44,7 @@ def read_args():
     parser.add_argument('--retro_state', type=str, default='default', help='initial gym-retro state name or "default" or "randomized" (to randomize on episode reset)')
     parser.add_argument('--time_limit', type=int, default=108_000, help='environment time limit for gym & retro (in non-frameskipped native env frames)')
     parser.add_argument('--eid', type=int, default=None, help='')
+    parser.add_argument('--wandb_tag', type=str, default=None, help='')
 
     # env preprocessing settings
     parser.add_argument('--frame_skip', type=int, default=None, help='use only every nth env frame (default is to use environment specific presets)')
@@ -53,7 +54,7 @@ def read_args():
 
     # dqn settings
     parser.add_argument('--buffer_size', type=int, default=int(2 ** 20), help='capacity of experience replay buffer (must be a power of two)')
-    parser.add_argument('--burnin', type=int, default=120_000, help='how many transitions should be in the buffer before start of training')
+    parser.add_argument('--burnin', type=int, default=100_000, help='how many transitions should be in the buffer before start of training')
     parser.add_argument('--gamma', type=float, default=0.99, help='reward discount factor')
     parser.add_argument('--sync_dqn_target_every', type=int, default=32_000, help='sync Q target net every n frames')
 
@@ -65,7 +66,7 @@ def read_args():
     # rainbow settings
     parser.add_argument('--network_arch', type=str, default='impala_large:2',
                         help='which model architecture to use for the q-network; one of "nature", "dueling", "impala_small", "impala_large:c" (c is the number of channels in impala large)')
-    parser.add_argument('--spectral_norm', type=parse_bool, default=False, help='whether to use spectral normalization for IMPALA-large conv layers')
+    parser.add_argument('--spectral_norm', type=parse_bool, default=True, help='whether to use spectral normalization for IMPALA-large conv layers')
     parser.add_argument('--double_dqn', type=parse_bool, default=True, help='whether to use the double-dqn TD-target')
     parser.add_argument('--prioritized_er', type=parse_bool, default=True, help='whether to use prioritized experience replay')
     parser.add_argument('--prioritized_er_beta0', type=float, default=0.45, help='importance sampling exponent for PER (0.4 for rainbow, 0.5 for dopamine)')
@@ -110,9 +111,8 @@ def read_args():
     assert args.burnin > args.batch_size
 
     if args.eid is not None:
-        args.env_name = ['gym:Breakout', 'gym:YarsRevenge', 'gym:NameThisGame', 'gym:SpaceInvaders',
-                         'gym:Tennis', 'gym:WizardOfWor', 'gym:Centipede', 'gym:Atlantis', 'gym:Enduro',
-                         'gym:BeamRider'][args.eid]
+        envs = ['Alien', 'Amidar', 'Assault', 'Asterix', 'Asteroids', 'Atlantis', 'BankHeist', 'BattleZone', 'BeamRider', 'Berzerk', 'Bowling', 'Boxing', 'Breakout', 'Centipede', 'ChopperCommand', 'CrazyClimber', 'Defender', 'DemonAttack', 'DoubleDunk', 'Enduro', 'FishingDerby', 'Freeway', 'Frostbite', 'Gopher', 'Gravitar', 'Hero', 'IceHockey', 'Kangaroo', 'Krull', 'KungFuMaster', 'MontezumaRevenge', 'MsPacman', 'NameThisGame', 'Phoenix', 'Pitfall', 'Pong', 'PrivateEye', 'Qbert', 'RoadRunner', 'Robotank', 'Seaquest', 'Skiing', 'Solaris', 'SpaceInvaders', 'StarGunner', 'Tennis', 'TimePilot', 'Tutankham', 'Venture', 'VideoPinball', 'WizardOfWor', 'YarsRevenge', 'Zaxxon']
+        args.env_name = 'gym:' + envs[args.eid]
 
     args.user_seed = args.seed
     args.seed = env_seeding(args.user_seed, args.env_name)
@@ -172,5 +172,6 @@ def read_args():
         for k in list(wandb_log_config.keys()):
             if k.startswith('procgen'):
                 del wandb_log_config[k]
+    del wandb_log_config['wandb_tag']
 
     return args, wandb_log_config

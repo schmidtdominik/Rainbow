@@ -259,7 +259,27 @@ class ImpalaCNNLarge(nn.Module):
         f = self.pool(f)
         return self.dueling(f, advantages_only=advantages_only)
 
-class WideImpalaCNNBlock(nn.Module):
+
+class BNImpalaCNNResidual(nn.Module):
+    """
+    Simple residual block used in the large IMPALA CNN.
+    """
+    def __init__(self, depth, norm_func):
+        super().__init__()
+
+        self.main = nn.Sequential(
+            nn.BatchNorm2d(depth, track_running_stats=False),
+            nn.ReLU(),
+            norm_func(nn.Conv2d(in_channels=depth, out_channels=depth, kernel_size=3, stride=1, padding=1)),
+            nn.BatchNorm2d(depth, track_running_stats=False),
+            nn.ReLU(),
+            norm_func(nn.Conv2d(in_channels=depth, out_channels=depth, kernel_size=3, stride=1, padding=1))
+        )
+
+    def forward(self, x):
+        return x + self.main(x)
+
+class BNImpalaCNNBlock(nn.Module):
     """
     Three of these blocks are used in the large IMPALA CNN.
     """
@@ -268,8 +288,8 @@ class WideImpalaCNNBlock(nn.Module):
 
         self.conv = nn.Conv2d(in_channels=depth_in, out_channels=depth_out, kernel_size=3, stride=1, padding=1)
         self.max_pool = nn.MaxPool2d(3, 2, padding=1)
-        self.residual_0 = ImpalaCNNResidual(depth_out, norm_func=norm_func)
-        self.residual_1 = ImpalaCNNResidual(depth_out, norm_func=norm_func)
+        self.residual_0 = BNImpalaCNNResidual(depth_out, norm_func=norm_func)
+        self.residual_1 = BNImpalaCNNResidual(depth_out, norm_func=norm_func)
 
     def forward(self, x):
         x = self.conv(x)
@@ -278,8 +298,7 @@ class WideImpalaCNNBlock(nn.Module):
         x = self.residual_1(x)
         return x
 
-
-class WideImpalaCNNLarge(nn.Module):
+class BNImpalaCNNLarge(nn.Module):
     """
     Implementation of the large variant of the IMPALA CNN introduced in Espeholt et al. (2018).
     """
@@ -290,22 +309,26 @@ class WideImpalaCNNLarge(nn.Module):
         norm_func = torch.nn.utils.spectral_norm if spectral_norm else identity
 
         self.main = nn.Sequential(
-            nn.Conv2d(in_channels=in_depth, out_channels=12*model_size, kernel_size=5, stride=1),
-            nn.LeakyReLU(),
-            nn.MaxPool2d(2, 2),
-            WideImpalaCNNBlock(12*model_size, 40*model_size, norm_func=norm_func),
-            WideImpalaCNNBlock(40*model_size, 64*model_size, norm_func=norm_func),
+            BNImpalaCNNBlock(in_depth, 16 * model_size, norm_func=norm_func),
+            BNImpalaCNNBlock(16 * model_size, 32 * model_size, norm_func=norm_func),
+            BNImpalaCNNBlock(32 * model_size, 32 * model_size, norm_func=norm_func),
             nn.ReLU()
         )
 
-        self.pool = torch.nn.AdaptiveMaxPool2d((6, 6))
-        self.dueling = DuelingAlt(linear_layer(64*model_size*6*6, 384), linear_layer(384, actions + 1))
+        self.pool = torch.nn.AdaptiveMaxPool2d((8, 8))
+        self.dueling = Dueling(
+            nn.Sequential(linear_layer(2048*model_size, 256),
+                          nn.ReLU(),
+                          linear_layer(256, 1)),
+            nn.Sequential(linear_layer(2048*model_size, 256),
+                          nn.ReLU(),
+                          linear_layer(256, actions))
+        )
 
     def forward(self, x, advantages_only=False):
         f = self.main(x)
         f = self.pool(f)
         return self.dueling(f, advantages_only=advantages_only)
-
 
 def get_model(model_str, spectral_norm):
     if model_str == 'nature': return NatureCNN
@@ -313,5 +336,5 @@ def get_model(model_str, spectral_norm):
     elif model_str == 'impala_small': return ImpalaCNNSmall
     elif model_str.startswith('impala_large:'):
         return partial(ImpalaCNNLarge, model_size=int(model_str[13:]), spectral_norm=spectral_norm)
-    elif model_str.startswith('wide_impala_large:'):
-        return partial(WideImpalaCNNLarge, model_size=int(model_str[18:]), spectral_norm=spectral_norm)
+    elif model_str.startswith('bn_impala_large:'):
+        return partial(BNImpalaCNNLarge, model_size=int(model_str[16:]), spectral_norm=spectral_norm)
