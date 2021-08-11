@@ -5,6 +5,6 @@ parameters:
   eid:
     values: [8, 12, 19, 35, 37, 40, 43]
   seed:
-    value: 0, 1
+    values: [0, 1]
   spectral_norm:
     values: [True, False]
