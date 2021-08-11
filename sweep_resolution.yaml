@@ -1,0 +1,10 @@
+program: train.py
+method: grid
+project: rainbow
+parameters:
+  eid:
+    values: [8, 12, 19, 35, 37, 40, 43]
+  seed:
+    value: 0, 1
+  resolution:
+    values: [(72, 72), (84, 84)]

@@ -29,10 +29,10 @@ class Rainbow:
         self.q_target = net(depth, env.action_space.n, linear_layer).cuda()
         self.q_target.load_state_dict(self.q_policy.state_dict())
 
-        k = 0
-        for parameter in self.q_policy.parameters():
-            k += parameter.numel()
-        print(f'Q-Network has {k} parameters.')
+        #k = 0
+        #for parameter in self.q_policy.parameters():
+        #    k += parameter.numel()
+        #print(f'Q-Network has {k} parameters.')
 
         self.double_dqn = args.double_dqn
 

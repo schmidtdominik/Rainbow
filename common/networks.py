@@ -260,81 +260,9 @@ class ImpalaCNNLarge(nn.Module):
         return self.dueling(f, advantages_only=advantages_only)
 
 
-class BNImpalaCNNResidual(nn.Module):
-    """
-    Simple residual block used in the large IMPALA CNN.
-    """
-    def __init__(self, depth, norm_func):
-        super().__init__()
-
-        self.main = nn.Sequential(
-            nn.BatchNorm2d(depth, track_running_stats=False),
-            nn.ReLU(),
-            norm_func(nn.Conv2d(in_channels=depth, out_channels=depth, kernel_size=3, stride=1, padding=1)),
-            nn.BatchNorm2d(depth, track_running_stats=False),
-            nn.ReLU(),
-            norm_func(nn.Conv2d(in_channels=depth, out_channels=depth, kernel_size=3, stride=1, padding=1))
-        )
-
-    def forward(self, x):
-        return x + self.main(x)
-
-class BNImpalaCNNBlock(nn.Module):
-    """
-    Three of these blocks are used in the large IMPALA CNN.
-    """
-    def __init__(self, depth_in, depth_out, norm_func):
-        super().__init__()
-
-        self.conv = nn.Conv2d(in_channels=depth_in, out_channels=depth_out, kernel_size=3, stride=1, padding=1)
-        self.max_pool = nn.MaxPool2d(3, 2, padding=1)
-        self.residual_0 = BNImpalaCNNResidual(depth_out, norm_func=norm_func)
-        self.residual_1 = BNImpalaCNNResidual(depth_out, norm_func=norm_func)
-
-    def forward(self, x):
-        x = self.conv(x)
-        x = self.max_pool(x)
-        x = self.residual_0(x)
-        x = self.residual_1(x)
-        return x
-
-class BNImpalaCNNLarge(nn.Module):
-    """
-    Implementation of the large variant of the IMPALA CNN introduced in Espeholt et al. (2018).
-    """
-    def __init__(self, in_depth, actions, linear_layer, model_size=1, spectral_norm=False):
-        super().__init__()
-
-        def identity(p): return p
-        norm_func = torch.nn.utils.spectral_norm if spectral_norm else identity
-
-        self.main = nn.Sequential(
-            BNImpalaCNNBlock(in_depth, 16 * model_size, norm_func=norm_func),
-            BNImpalaCNNBlock(16 * model_size, 32 * model_size, norm_func=norm_func),
-            BNImpalaCNNBlock(32 * model_size, 32 * model_size, norm_func=norm_func),
-            nn.ReLU()
-        )
-
-        self.pool = torch.nn.AdaptiveMaxPool2d((8, 8))
-        self.dueling = Dueling(
-            nn.Sequential(linear_layer(2048*model_size, 256),
-                          nn.ReLU(),
-                          linear_layer(256, 1)),
-            nn.Sequential(linear_layer(2048*model_size, 256),
-                          nn.ReLU(),
-                          linear_layer(256, actions))
-        )
-
-    def forward(self, x, advantages_only=False):
-        f = self.main(x)
-        f = self.pool(f)
-        return self.dueling(f, advantages_only=advantages_only)
-
 def get_model(model_str, spectral_norm):
     if model_str == 'nature': return NatureCNN
     elif model_str == 'dueling': return DuelingNatureCNN
     elif model_str == 'impala_small': return ImpalaCNNSmall
     elif model_str.startswith('impala_large:'):
         return partial(ImpalaCNNLarge, model_size=int(model_str[13:]), spectral_norm=spectral_norm)
-    elif model_str.startswith('bn_impala_large:'):
-        return partial(BNImpalaCNNLarge, model_size=int(model_str[16:]), spectral_norm=spectral_norm)
