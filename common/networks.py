@@ -234,12 +234,14 @@ class ImpalaCNNLarge(nn.Module):
         super().__init__()
 
         def identity(p): return p
-        norm_func = torch.nn.utils.spectral_norm if spectral_norm else identity
+
+        norm_func = torch.nn.utils.spectral_norm if (spectral_norm == 'all') else identity
+        norm_func_last = torch.nn.utils.spectral_norm if (spectral_norm == 'last' or spectral_norm == 'all') else identity
 
         self.main = nn.Sequential(
             ImpalaCNNBlock(in_depth, 16*model_size, norm_func=norm_func),
             ImpalaCNNBlock(16*model_size, 32*model_size, norm_func=norm_func),
-            ImpalaCNNBlock(32*model_size, 32*model_size, norm_func=norm_func),
+            ImpalaCNNBlock(32*model_size, 32*model_size, norm_func=norm_func_last),
             nn.ReLU()
         )
 

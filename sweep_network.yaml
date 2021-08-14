@@ -3,8 +3,8 @@ method: grid
 project: rainbow
 parameters:
   eid:
-    values: [8, 12, 19, 35, 37, 40, 43]
+    values: [3, 8, 21, 40, 43]
   seed:
-    value: 0, 1
+    values: [0, 1]
   network_arch:
     values: ["dueling", "impala_large:1", "impala_large:2", "impala_large:4"]
