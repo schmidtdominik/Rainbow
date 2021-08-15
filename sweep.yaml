@@ -12,3 +12,5 @@ parameters:
     value: 2
   subproc_vecenv:
     value: True
+  use_amp:
+    value: False
