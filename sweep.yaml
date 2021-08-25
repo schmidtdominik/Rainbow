@@ -9,7 +9,9 @@ parameters:
   parallel_envs:
     value: 64
   train_count:
-    value: 2
+    value: 1
+  batch_size:
+    value: 512
   subproc_vecenv:
     value: True
   use_amp:
