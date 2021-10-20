@@ -50,7 +50,7 @@ def read_args():
     parser.add_argument('--frame_skip', type=int, default=None, help='use only every nth env frame (default is to use environment specific presets)')
     parser.add_argument('--frame_stack', type=int, default=None, help='stack n frames (default is to use environment specific presets)')
     parser.add_argument('--grayscale', type=parse_bool, default=None, help='convert environment to grayscale (default is to use environment specific presets)')
-    parser.add_argument('--resolution', nargs=2, type=int, default=None, help='environment resolution (default is to use environment specific presets)')
+    parser.add_argument('--resolution', type=int, default=None, help='environment resolution (default is to use environment specific presets)')
 
     # dqn settings
     parser.add_argument('--buffer_size', type=int, default=int(2 ** 20), help='capacity of experience replay buffer (must be a power of two)')
@@ -59,9 +59,9 @@ def read_args():
     parser.add_argument('--sync_dqn_target_every', type=int, default=32_000, help='sync Q target net every n frames')
 
     parser.add_argument('--batch_size', type=int, default=256, help='sample size when sampling from the replay buffer')
-    parser.add_argument('--parallel_envs', type=int, default=32, help='number of envs in the vectorized env')
-    parser.add_argument('--train_count', type=int, default=1, help='how often to train on a batch_size batch for every step (of the vectorized env)')
-    parser.add_argument('--subproc_vecenv', type=parse_bool, default=False, help='whether to run each environment in it\'s own subprocess (always enabled for gym-retro)')
+    parser.add_argument('--parallel_envs', type=int, default=64, help='number of envs in the vectorized env')
+    parser.add_argument('--train_count', type=int, default=2, help='how often to train on a batch_size batch for every step (of the vectorized env)')
+    parser.add_argument('--subproc_vecenv', type=parse_bool, default=True, help='whether to run each environment in it\'s own subprocess (always enabled for gym-retro)')
 
     # rainbow settings
     parser.add_argument('--network_arch', type=str, default='impala_large:2',
@@ -121,6 +121,9 @@ def read_args():
     # apply default values if user did not specify custom settings
     if args.adam_eps is None: args.adam_eps = 0.005/args.batch_size
     if args.prioritized_er_time is None: args.prioritized_er_time = args.training_frames
+
+    if args.resolution is not None:
+        args.resolution = (args.resolution, args.resolution)
 
     if args.env_name.startswith('gym:'):
         if args.frame_skip is None: args.frame_skip = 4
