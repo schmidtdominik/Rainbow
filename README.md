@@ -25,7 +25,8 @@ Most of the observed performance improvements compared to the paper come from sw
 Install necessary prerequisites with
 
 ```
-pip install wandb gym[atari] imageio moviepy torchsummary tqdm rich procgen gym-retro torch stable_baselines3
+sudo apt install zlib1g-dev cmake unrar
+pip install wandb gym[atari]==0.18.0 imageio moviepy torchsummary tqdm rich procgen gym-retro torch stable_baselines3 atari_py==0.2.9
 ```
 
 If you intend to use `gym` Atari games, you will need to install these separately, e.g., by running:
