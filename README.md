@@ -1,6 +1,6 @@
 # Rainbow 🌈
 
-*An implementation of Rainbow DQN which outperforms the paper's (Hessel et al. 2017) results on 40% of tested games while using 20x less data.* This was developed as part of an undergraduate university course on scientific research and writing. The accompanying paper, including results on the ALE, can be found [here](https://raw.githubusercontent.com/schmidtdominik/Rainbow/main/PAPER.pdf). The results are also available as a spreadsheet [here](https://docs.google.com/spreadsheets/d/1ncCFIno4o83JmosAwj30XvIfWSIbO5btomfTrzEr4xE). A selection of videos is available [here](https://drive.google.com/drive/folders/1bNRyHcDYxSbww1aGskhqoMA2OurJXtOU).
+*An implementation of Rainbow DQN which outperforms the paper's (Hessel et al. 2017) results on 40% of tested games while using 20x less data.* This was developed as part of an undergraduate university course on scientific research and writing. The results are also available as a spreadsheet [here](https://docs.google.com/spreadsheets/d/1ncCFIno4o83JmosAwj30XvIfWSIbO5btomfTrzEr4xE). A selection of videos is available [here](https://drive.google.com/drive/folders/1bNRyHcDYxSbww1aGskhqoMA2OurJXtOU).
 
 ### Key Changes and Results
 - We implemented the large IMPALA CNN with 2x channels from Espeholt et al. (2018).
