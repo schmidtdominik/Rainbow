@@ -1,6 +1,6 @@
 # Rainbow 🌈
 
-*An implementation of Rainbow DQN which reaches a median HNS of 205.7 after only 10M frames (the original Rainbow from Hessel et al. 2017 reached 231.0 using 20x more data).* This was developed as part of an undergraduate university course on scientific research and writing. A selection of videos is available [here](https://drive.google.com/drive/folders/1bNRyHcDYxSbww1aGskhqoMA2OurJXtOU).
+*An variant of Rainbow DQN which reaches a median HNS of 205.7 after only 10M frames (the original Rainbow from Hessel et al. 2017 reached 231.0 using 20x more data).* See the [paper](https://arxiv.org/abs/2111.10247) for more details. This was developed as part of an undergraduate university course on scientific research and writing. A selection of videos is available [here](https://drive.google.com/drive/folders/1bNRyHcDYxSbww1aGskhqoMA2OurJXtOU).
 
 ### Key Changes and Results
 - We used the large IMPALA-CNN with 2x channels from Espeholt et al. (2018), other networks are also implemented.
@@ -9,15 +9,6 @@
 - We performed additional hyperparameters tuning (see paper).
 - The implementation uses large, vectorized environments, asynchronous environment interaction, mixed-precision training, and larger batch sizes to improve computational efficiency and reduce training time.
 - Integrations and recommended preprocessing for >1000 environments from [gym](https://github.com/openai/gym), [gym-retro](https://github.com/openai/retro) and [procgen](https://github.com/openai/procgen) are provided.
-
-When trained for only 10M frames, this implementation outperforms (these are outdated, check the paper)
-
-| | | |
-|-----------------------|:-------------------------|:---------------|
-| google/dopamine       | trained for 10M frames  | on 96% of games |
-| google/dopamine       | trained for 200M frames | on 64% of games |
-| Hessel, et al. (2017) | trained for 200M frames | on 40% of games |
-| Human results         |                           | on 72% of games |
 
 Please cite the [paper](https://arxiv.org/abs/2111.10247) if you use this implementation in your publication.
 
